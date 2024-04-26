@@ -1,0 +1,64 @@
+version: "3.8"
+services:
+  # Database for Odoo
+  db:
+    image: postgres:16.2
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+  # Odoo version 15
+  web:
+    depends_on:
+      - db
+    image: odoo:15
+    ports:
+      - "80:8069"
+    restart: unless-stopped
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./custom-addons:/mnt/extra-addons
+      - ./ent-addons:/mnt/enterprise-addons
+      - ./odoo.conf:/etc/odoo/odoo.conf
+    environment:
+      - odoo_training_EVENTSTORE_URL=host.docker.internal:2113
+    command:
+      - --dev=all
+      - -u base -d admin
+
+  #Evenstore Database
+  eventstore.db:
+    image: eventstore/eventstore:20.6.1-buster-slim
+    environment:
+      - EVENTSTORE_CLUSTER_SIZE=1
+      - EVENTSTORE_RUN_PROJECTIONS=All
+      - EVENTSTORE_START_STANDARD_PROJECTIONS=true
+      - EVENTSTORE_EXT_TCP_PORT=1113
+      - EVENTSTORE_EXT_HTTP_PORT=2113
+    ports:
+      - '1113:1113'
+      - '2113:2113'
+    command: --insecure
+    volumes:
+      - eventstore-data:/var/lib/eventstore
+      - eventstore-logs:/var/log/eventstore
+
+  #pgadmin for postgres
+  pg-admin:
+    image: dpage/pgadmin4:6
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@email.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_LISTEN_PORT=5050
+    ports:
+      - "5050:5050"
+volumes:
+  odoo-web-data: {}
+  odoo-db-data: {}
+  eventstore-data: {}
+  eventstore-logs: {}
